@@ -41,7 +41,7 @@ You must configure your DNS records to have an A record for your personal `domai
 
 ## Additional configurations
 
-- [imrancio-blog](imrancio-blog/README.md)
+- [imrancio-blog](blog/README.md)
 - [mariadb](mariadb/README.md)
 - [standardnotes](standardnotes/README.md)
 - [traefik](traefik/README.md)
