@@ -62,7 +62,7 @@ To start the docker services via docker-compose:
 cd mariadb && docker-compose up -d
 cd ../redis && docker-compose up -d
 cd ../traefik && docker-compose up -d
-cd ../imrancio-blog && docker-compose up -d
+cd ../blog && docker-compose up -d
 cd ../vaultwarden && docker-compose up -d
 cd ../standardnotes && docker-compose up -d
 ```
