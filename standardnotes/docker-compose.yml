@@ -1,0 +1,134 @@
+version: '3.8'
+services:
+  notes-syncing-server-js:
+    image: standardnotes/syncing-server-js:latest
+    container_name: notes-syncing-server-js
+    # depends on external cache and db service
+    entrypoint: [
+      './docker/entrypoint.sh', 'start-web'
+    ]
+    env_file: ./.env
+    environment:
+      PORT: 3000
+    restart: unless-stopped
+    networks:
+      - backend
+
+  notes-auth:
+    image: standardnotes/auth:latest
+    container_name: notes-auth
+    depends_on:
+      # also depends on external cache and db service
+      - notes-syncing-server-js
+    entrypoint: [
+      './wait-for.sh', 'notes-syncing-server-js', '3000',
+      './docker/entrypoint.sh', 'start-web'
+    ]
+    env_file: ./auth.env
+    environment:
+      PORT: 3000
+      DB_HOST: '${DB_HOST}'
+      DB_REPLICA_HOST: '${DB_REPLICA_HOST}'
+      DB_PORT: '${DB_PORT}'
+      DB_DATABASE: '${DB_DATABASE}'
+      DB_USERNAME: '${DB_USERNAME}'
+      DB_PASSWORD: '${DB_PASSWORD}'
+      DB_DEBUG_LEVEL: '${DB_DEBUG_LEVEL}'
+      DB_MIGRATIONS_PATH: '${DB_MIGRATIONS_PATH}'
+      REDIS_URL: '${REDIS_URL}'
+      AUTH_JWT_SECRET: '${AUTH_JWT_SECRET}'
+    restart: unless-stopped
+    networks:
+      - backend
+
+  notes-api-gateway:
+    image: standardnotes/api-gateway:latest
+    container_name: notes-api-gateway
+    depends_on:
+      - notes-auth
+      - notes-syncing-server-js
+    env_file: ./api-gateway.env
+    ports:
+      - ${EXPOSED_PORT}:3000
+    environment:
+      PORT: 3000
+      AUTH_JWT_SECRET: '${AUTH_JWT_SECRET}'
+      REDIS_URL: '${REDIS_URL}'
+    entrypoint: [
+      './wait-for.sh', 'notes-auth', '3000',
+      './wait-for.sh', 'notes-syncing-server-js', '3000',
+      './docker/entrypoint.sh', 'start-web'
+    ]
+    restart: unless-stopped
+    networks:
+      - backend
+    labels:
+      - 'traefik.enable=true'
+      - 'traefik.http.routers.notes-api-gateway-https.entrypoints=websecure'
+      - 'traefik.http.routers.notes-api-gateway-https.rule=Host(`notes-api.domain.tld`)'
+      - 'traefik.http.routers.notes-api-gateway-https.tls.certresolver=leresolver'
+      - 'traefik.http.routers.notes-api-gateway-https.service=notes-api-gateway'
+      - 'traefik.http.services.notes-api-gateway.loadbalancer.server.port=3000'
+
+  notes-extensions:
+    image: iganesh/standardnotes-extensions
+    container_name: notes-extensions
+    restart: 'no'
+    volumes:
+      - ./standardnotes-extensions/.env:/build/.env
+      - ./standardnotes-extensions/extensions:/build/extensions
+      - ./standardnotes-extensions/standardnotes-extensions-list.txt:/build/standardnotes-extensions-list.txt
+      - notes-extensions:/build/public
+
+  notes-extensions-nginx:
+    image: nginx:alpine
+    container_name: notes-extensions-nginx
+    restart: unless-stopped
+    depends_on:
+      - notes-extensions
+    ports:
+      - 8000:80
+    volumes:
+      - ./extensions-nginx.conf:/etc/nginx/conf.d/default.conf
+      - notes-extensions:/usr/share/nginx/html
+    networks:
+      - backend
+    labels:
+      - 'traefik.enable=true'
+      - 'traefik.http.routers.notes-extensions-https.entrypoints=websecure'
+      - 'traefik.http.routers.notes-extensions-https.rule=Host(`notes-api.domain.tld`) && PathPrefix(`/extensions`)'
+      - 'traefik.http.routers.notes-extensions-https.tls.certresolver=leresolver'
+      - 'traefik.http.routers.notes-extensions-https.service=notes-extensions'
+      - 'traefik.http.services.notes-extensions.loadbalancer.server.port=80'
+
+  notes-ui:
+    image: standardnotes/web:latest
+    container_name: notes-ui
+    env_file:
+      - ./.env
+    ports:
+      - ${EXPOSED_PORT_UI}:3001
+    environment:
+      PORT: 3001
+      DEFAULT_SYNC_SERVER: '${DEFAULT_SYNC_SERVER}'
+    entrypoint: [
+      './docker/entrypoint.sh', 'start-local'
+    ]
+    restart: unless-stopped
+    networks:
+      - backend
+    labels:
+      - 'traefik.enable=true'
+      - 'traefik.http.routers.notes-ui-https.entrypoints=websecure'
+      - 'traefik.http.routers.notes-ui-https.rule=Host(`notes.domain.tld`)'
+      - 'traefik.http.routers.notes-ui-https.tls.certresolver=leresolver'
+      - 'traefik.http.routers.notes-ui-https.service=notes-ui'
+      - 'traefik.http.services.notes-ui.loadbalancer.server.port=3001'
+
+volumes:
+  notes-extensions:
+    name: notes-extensions
+
+networks:
+  backend:
+    external: true

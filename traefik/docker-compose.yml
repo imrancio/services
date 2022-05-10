@@ -1,0 +1,25 @@
+version: "3.3"
+
+services:
+
+  traefik:
+    image: 'traefik:v2.6'
+    container_name: traefik
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      # Persist Let's Encrypt certificates
+      - './letsencrypt:/letsencrypt'
+      # For Docker service discovery
+      - '/var/run/docker.sock:/var/run/docker.sock:ro'
+      # Traefik configuration
+      - './traefik.yml:/traefik.yml'
+      - './traefik_dynamic.yml:/traefik_dynamic.yml'
+    networks:
+      - backend
+
+networks:
+  backend:
+    external: true

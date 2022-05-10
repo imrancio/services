@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+
+  db:
+    image: mariadb:10.7
+    container_name: mariadb
+    restart: always
+    env_file:
+      - ./secrets.env
+    ports:
+      - '3306:3306'
+    volumes:
+      - ./db:/var/lib/mysql
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - backend
+
+networks:
+  backend:
+    external: true

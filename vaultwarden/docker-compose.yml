@@ -1,0 +1,33 @@
+version: '3'
+
+services:
+
+  vaultwarden:
+    image: vaultwarden/server:latest
+    container_name: vaultwarden
+    restart: unless-stopped
+    env_file:
+      - ./secrets.env
+    volumes:
+      - ./vw-data:/data
+    labels:
+      # Enable traefik routing
+      - 'traefik.enable=true'
+      # Vaultwarden UI
+      - 'traefik.http.routers.vaultwarden-ui-https.rule=Host(`vault.domain.tld`)'
+      - 'traefik.http.routers.vaultwarden-ui-https.entrypoints=websecure'
+      - 'traefik.http.routers.vaultwarden-ui-https.tls.certresolver=leresolver'
+      - 'traefik.http.routers.vaultwarden-ui-https.service=vaultwarden-ui'
+      - 'traefik.http.services.vaultwarden-ui.loadbalancer.server.port=80'
+      # Vaultwarden Websocket
+      - 'traefik.http.routers.vaultwarden-websocket-https.rule=Host(`vault.domain.tld`) && Path(`/notifications/hub`)'
+      - 'traefik.http.routers.vaultwarden-websocket-https.entrypoints=websecure'
+      - 'traefik.http.routers.vaultwarden-websocket-https.tls.certresolver=leresolver'
+      - 'traefik.http.routers.vaultwarden-websocket-https.service=vaultwarden-websocket'
+      - 'traefik.http.services.vaultwarden-websocket.loadbalancer.server.port=3012'
+    networks:
+      - backend
+
+networks:
+  backend:
+    external: true

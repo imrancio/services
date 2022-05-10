@@ -1,0 +1,36 @@
+version: '3.3'
+
+services:
+  blog:
+    # NOTE: must build docker image for blog under this name
+    image: imrancio-blog
+    container_name: blog
+    restart: unless-stopped
+    labels:
+      # Enable traefik routing
+      - 'traefik.enable=true'
+      - 'traefik.http.routers.blog.rule=Host(`blog.domain.tld`)'
+      - 'traefik.http.routers.blog.entrypoints=websecure'
+      - 'traefik.http.routers.blog.tls.certresolver=leresolver'
+      # Routes from root domain.tld
+      - 'traefik.http.routers.root.rule=Host(`domain.tld`)'
+      - 'traefik.http.routers.root.entrypoints=websecure'
+      - 'traefik.http.routers.root.tls.certresolver=leresolver'
+      - 'traefik.http.routers.root.middlewares=redirect-to-blog'
+      # Routes from www.domain.tld
+      - 'traefik.http.routers.www.rule=Host(`www.domain.tld`)'
+      - 'traefik.http.routers.www.entrypoints=websecure'
+      - 'traefik.http.routers.www.tls.certresolver=leresolver'
+      - 'traefik.http.routers.www.middlewares=redirect-www-to-blog'
+      # domain.tld -> blog.domain.tld redirect middleware
+      - "traefik.http.middlewares.redirect-to-blog.redirectregex.regex=^https?:\\/\\/(domain\\.tld)+(.*)$$"
+      - 'traefik.http.middlewares.redirect-to-blog.redirectregex.replacement=https://blog.$${1}$${2}'
+      # www.domain.tld -> blog.domain.tld redirect middleware
+      - "traefik.http.middlewares.redirect-www-to-blog.redirectregex.regex=^https?:\\/\\/www\\.(domain\\.tld)+(.*)$$"
+      - 'traefik.http.middlewares.redirect-www-to-blog.redirectregex.replacement=https://blog.$${1}$${2}'
+    networks:
+      - backend
+
+networks:
+  backend:
+    external: true

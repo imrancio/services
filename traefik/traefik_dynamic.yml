@@ -1,0 +1,36 @@
+# Dynamic Configuration
+http:
+  routers:
+    # traefik dashboard router
+    api:
+      rule: Host(`proxy.domain.tld`) && (PathPrefix(`/api`) || PathPrefix(`/dashboard`))
+      service: api@internal
+      entrypoints:
+        - web
+        - websecure
+      middlewares:
+        - simpleAuth
+      tls:
+        certResolver: leresolver
+    # s3 file server proxy
+    files:
+      rule: Host(`files.domain.tld`)
+      service: files
+      entrypoints:
+        - websecure
+      tls:
+        certResolver: leresolver
+
+  middlewares:
+    # username:passwd http auth
+    simpleAuth:
+      basicAuth:
+        users:
+          - "example:$apr1$tJRjpKo9$nWG0X80QpK7LpdPEWKQYw1"
+
+  services:
+    # files service connects to static s3 bucket
+    files:
+      loadBalancer:
+        servers:
+          - url: http://files.domain.tld.s3-website-ap-southeast-1.amazonaws.com

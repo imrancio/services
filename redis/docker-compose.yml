@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  cache:
+    image: redis:6.0-alpine
+    container_name: redis
+    volumes:
+      - ./cache/:/data
+    expose:
+      - 6379
+    restart: unless-stopped
+    networks:
+      - backend
+
+networks:
+  backend:
+    external: true
