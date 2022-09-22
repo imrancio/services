@@ -1,7 +1,27 @@
 # Dynamic Configuration
 http:
   routers:
-    # traefik dashboard router
+    # Routes from root domain.tld
+    root:
+      rule: Host(`domain.tld`)
+      service: noop@internal
+      entrypoints:
+        - websecure
+      middlewares:
+        - redirectToBlog
+      tls:
+        certResolver: leresolver
+    # Routes from www.domain.tld 
+    www:
+      rule: Host(`www.domain.tld`)
+      service: noop@internal
+      entrypoints:
+        - websecure
+      middlewares:
+        - redirectWWWToBlog
+      tls:
+        certResolver: leresolver
+    # traefik proxy.domain.tld/dashboard/ router
     api:
       rule: Host(`proxy.domain.tld`) && (PathPrefix(`/api`) || PathPrefix(`/dashboard`))
       service: api@internal
@@ -12,25 +32,20 @@ http:
         - simpleAuth
       tls:
         certResolver: leresolver
-    # s3 file server proxy
-    files:
-      rule: Host(`files.domain.tld`)
-      service: files
-      entrypoints:
-        - websecure
-      tls:
-        certResolver: leresolver
 
   middlewares:
+    # domain.tld -> blog.domain.tld redirect middleware
+    redirectToBlog:
+      redirectRegex:
+        regex: ^https?://(domain\.tld)+(.*)$
+        replacement: https://blog.${1}${2}
+    # www.domain.tld -> blog.domain.tld redirect middleware
+    redirectWWWToBlog:
+      redirectRegex:
+        regex: ^https?://www\.(domain\.tld)+(.*)$
+        replacement: https://blog.${1}${2}
     # username:passwd http auth
     simpleAuth:
       basicAuth:
         users:
           - "example:$apr1$tJRjpKo9$nWG0X80QpK7LpdPEWKQYw1"
-
-  services:
-    # files service connects to static s3 bucket
-    files:
-      loadBalancer:
-        servers:
-          - url: http://files.domain.tld.s3-website-ap-southeast-1.amazonaws.com
