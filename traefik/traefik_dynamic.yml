@@ -21,15 +21,15 @@ http:
         - redirectWWWToBlog
       tls:
         certResolver: leresolver
-    # traefik proxy.domain.tld/dashboard/ router
+    # traefik dashboard router
     api:
-      rule: Host(`proxy.domain.tld`) && (PathPrefix(`/api`) || PathPrefix(`/dashboard`))
+      rule: Host(`proxy.domain.tld`) && (PathPrefix(`/api`) || PathPrefix(`/dashboard`) || PathPrefix(`/`))
       service: api@internal
       entrypoints:
-        - web
         - websecure
       middlewares:
         - simpleAuth
+        - redirectProxyToDashboard
       tls:
         certResolver: leresolver
 
@@ -44,6 +44,11 @@ http:
       redirectRegex:
         regex: ^https?://www\.(domain\.tld)+(.*)$
         replacement: https://blog.${1}${2}
+    # proxy.domain.tld -> proxy.domain.tld/dashboard/ redirect middleware
+    redirectProxyToDashboard:
+      redirectRegex:
+        regex: ^https?://proxy\.(domain\.tld)(/dashboard)?(.*)$
+        replacement: https://proxy.${1}/dashboard${3}
     # username:passwd http auth
     simpleAuth:
       basicAuth:
